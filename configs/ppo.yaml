@@ -1,0 +1,5 @@
+env_name: CartPole-v1
+seed: 42
+num_episodes: 10
+max_steps_per_episode: 500
+log_dir: experiments/results

@@ -1,2 +1,3 @@
-
-gym
+pyyaml
+numpy
+gymnasium
