@@ -126,6 +126,7 @@ def main():
         losses = agent.update(
             batch=batch,
             ppo_epochs=config["ppo_epochs"],
+            mini_batch_size=config["mini_batch_size"],
         )
 
         mean_reward = np.mean(rewards[-10:])

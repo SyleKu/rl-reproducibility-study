@@ -54,12 +54,19 @@ class PPOAgent:
             float(value.item()),
         )
 
-    def update(self, batch: dict[str, torch.Tensor], ppo_epochs: int) -> dict[str, float]:
+    def update(
+            self,
+            batch: dict[str, torch.Tensor],
+            ppo_epochs: int,
+            mini_batch_size: int,
+    ) -> dict[str, float]:
         observations = batch["observations"].to(self.device)
         actions = batch["actions"].to(self.device)
         old_log_probs = batch["old_log_probs"].to(self.device)
         advantages = batch["advantages"].to(self.device)
         returns = batch["returns"].to(self.device)
+
+        batch_size = observations.shape[0]
 
         last_policy_loss = 0.0
         last_value_loss = 0.0
@@ -67,44 +74,56 @@ class PPOAgent:
         last_total_loss = 0.0
 
         for _ in range(ppo_epochs):
-            action_dist = self.policy(observations)
-            new_log_probs = action_dist.log_prob(actions)
-            entropy = action_dist.entropy().mean()
+            indices = torch.randperm(batch_size, device=self.device)
 
-            values = self.value(observations)
+            for start in range(0, batch_size, mini_batch_size):
+                end = start + mini_batch_size
+                mini_batch_indices = indices[start:end]
 
-            ratio = torch.exp(new_log_probs - old_log_probs)
+                mb_observations = observations[mini_batch_indices]
+                mb_actions = actions[mini_batch_indices]
+                mb_old_log_probs = old_log_probs[mini_batch_indices]
+                mb_advantages = advantages[mini_batch_indices]
+                mb_returns = returns[mini_batch_indices]
 
-            unclipped_objective = ratio * advantages
-            clipped_objective = (
-                torch.clamp(
-                    ratio,
-                    1.0 - self.clip_epsilon,
-                    1.0 + self.clip_epsilon
-                ) * advantages
-            )
+                action_dist = self.policy(mb_observations)
+                new_log_probs = action_dist.log_prob(mb_actions)
+                entropy = action_dist.entropy().mean()
 
-            policy_loss = -torch.min(
-                unclipped_objective,
-                clipped_objective
-            ).mean()
+                values = self.value(mb_observations)
 
-            value_loss = F.mse_loss(values, returns)
+                ratio = torch.exp(new_log_probs - mb_old_log_probs)
 
-            total_loss = (
-                policy_loss
-                + value_loss * self.value_coef
-                - self.entropy_coef * entropy
-            )
+                unclipped_objective = ratio * mb_advantages
+                clipped_objective = (
+                    torch.clamp(
+                        ratio,
+                        1.0 - self.clip_epsilon,
+                        1.0 + self.clip_epsilon
+                    ) * mb_advantages
+                )
 
-            self.optimizer.zero_grad()
-            total_loss.backward()
-            self.optimizer.step()
+                policy_loss = -torch.min(
+                    unclipped_objective,
+                    clipped_objective
+                ).mean()
 
-            last_policy_loss = policy_loss.item()
-            last_value_loss = value_loss.item()
-            last_entropy = entropy.item()
-            last_total_loss = total_loss.item()
+                value_loss = F.mse_loss(values, mb_returns)
+
+                total_loss = (
+                    policy_loss
+                    + self.value_coef * value_loss
+                    - self.entropy_coef * entropy
+                )
+
+                self.optimizer.zero_grad()
+                total_loss.backward()
+                self.optimizer.step()
+
+                last_policy_loss = policy_loss.item()
+                last_value_loss = value_loss.item()
+                last_entropy = entropy.item()
+                last_total_loss = total_loss.item()
 
         return {
             "policy_loss": last_policy_loss,
