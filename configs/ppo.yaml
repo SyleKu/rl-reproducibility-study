@@ -1,8 +1,14 @@
 env_name: CartPole-v1
 seed: 42
-num_episodes: 10
+num_episodes: 100
 max_steps_per_episode: 500
 log_dir: experiments/results
 
 gamma: 0.99
 gae_lambda: 0.95
+
+learning_rate: 0.0003
+clip_epsilon: 0.2
+ppo_epochs: 4
+value_coef: 0.5
+entropy_coef: 0.01

@@ -66,7 +66,15 @@ def main():
     else:
         raise ValueError("Only discrete action spaces supported")
 
-    agent = PPOAgent(obs_dim=obs_dim, action_dim=action_dim)
+    agent = PPOAgent(
+        obs_dim=obs_dim,
+        action_dim=action_dim,
+        learning_rate=config["learning_rate"],
+        clip_epsilon=config["clip_epsilon"],
+        value_coef=config["value_coef"],
+        entropy_coef=config["entropy_coef"],
+    )
+
     buffer = PPOBuffer()
     logger = CSVLogger(log_dir=log_dir)
 
@@ -85,6 +93,11 @@ def main():
 
         batch = buffer.get_tensors()
 
+        losses = agent.update(
+            batch=batch,
+            ppo_epochs=config["ppo_epochs"],
+        )
+
         rewards.append(reward)
         logger.log(episode=episode, reward=reward, steps=steps)
 
@@ -95,9 +108,9 @@ def main():
             f"Reward: {reward:.2f} | "
             f"Steps: {steps} | "
             f"Mean (Last 10): {mean_reward:.2f} | "
-            f"Buffer: {len(buffer.rewards)} | "
-            f"Adv Mean: {batch['advantages'].mean():.4f} | "
-            f"Return Mean: {batch['returns'].mean():.4f}"
+            f"Policy Loss: {losses['policy_loss']:.4f} | "
+            f"Value Loss: {losses['value_loss']:.4f} | "
+            f"Entropy: {losses['entropy']:.4f}"
         )
 
     env.close()
