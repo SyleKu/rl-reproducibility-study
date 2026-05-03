@@ -1,3 +1,6 @@
+experiments/results/
+experiments/plots/
+
 # PyCharm / IntelliJ
 .idea/
 *.pyc
