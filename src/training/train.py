@@ -1,3 +1,4 @@
+from pathlib import Path
 import yaml
 import numpy as np
 import gymnasium as gym
@@ -82,7 +83,18 @@ def main():
     env_name = config["env_name"]
     seed = config["seed"]
     max_steps = config["max_steps_per_episode"]
-    log_dir = config["log_dir"]
+
+    base_log_dir = Path(config["log_dir"])
+    base_log_dir.mkdir(parents=True, exist_ok=True)
+
+    existing_runs = sorted(base_log_dir.glob("run_*"))
+    run_id = len(existing_runs) + 1
+
+    run_dir = base_log_dir / f"run_{run_id:03d}"
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    log_dir = str(run_dir)
+
     gamma = config["gamma"]
     gae_lambda = config["gae_lambda"]
 

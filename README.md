@@ -13,6 +13,22 @@ conditions.
 
 ---
 
+## Results
+
+### PPO on CartPole-v1
+
+The PPO implementation successfully solves CartPole-v1 during deterministic evaluation.
+
+- Best evaluation reward: **500.0**
+- Environment: `CartPole-v1`
+- Policy: MLP with categorical action distribution
+- Advantage estimation: GAE
+
+![PPO Training Curve](assets/ppo_cartpole.png)
+
+
+---
+
 ## Goals
 
 - Compare sample efficiency
