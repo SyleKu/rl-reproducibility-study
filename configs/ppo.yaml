@@ -3,3 +3,6 @@ seed: 42
 num_episodes: 10
 max_steps_per_episode: 500
 log_dir: experiments/results
+
+gamma: 0.99
+gae_lambda: 0.95
