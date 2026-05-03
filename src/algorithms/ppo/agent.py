@@ -1,7 +1,9 @@
+from pathlib import Path
 import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.optim import Adam
+from torch.utils.checkpoint import checkpoint
 
 from src.algorithms.ppo.model import PolicyNetwork, ValueNetwork
 
@@ -39,12 +41,27 @@ class PPOAgent:
         self.value_coef = value_coef
         self.entropy_coef = entropy_coef
 
-    def select_action(self, obs: np.ndarray) -> tuple[int, float, float]:
-        obs_tensor = torch.as_tensor(obs, dtype=torch.float32, device=self.device)
+    def select_action(
+            self,
+            obs: np.ndarray,
+            deterministic: bool = False,
+    ) -> tuple[int, float, float]:
+        obs_tensor = torch.as_tensor(
+            obs,
+            dtype=torch.float32,
+            device=self.device
+        )
 
         with torch.no_grad():
             action_dist = self.policy(obs_tensor)
-            action = action_dist.sample()
+
+            if deterministic:
+                action = torch.argmax(action_dist.probs, dim=-1)
+            else:
+                action = action_dist.sample()
+
+            action = action.long()
+
             log_prob = action_dist.log_prob(action)
             value = self.value(obs_tensor)
 
@@ -131,3 +148,23 @@ class PPOAgent:
             "entropy": last_entropy,
             "total_loss": last_total_loss,
         }
+
+    def save(self, path: str) -> None:
+        checkpoint_path = Path(path)
+        checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+
+        torch.save(
+        {
+                "policy_state_dict": self.policy.state_dict(),
+                "value_state_dict": self.value.state_dict(),
+                "optimizer_state_dict": self.optimizer.state_dict(),
+            },
+            checkpoint_path
+        )
+
+    def load(self, path: str) -> None:
+        checkpoint = torch.load(path, map_location=self.device)
+
+        self.policy.load_state_dict(checkpoint["policy_state_dict"])
+        self.value.load_state_dict(checkpoint["value_state_dict"])
+        self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])

@@ -14,3 +14,7 @@ ppo_epochs: 4
 mini_batch_size: 64
 value_coef: 0.5
 entropy_coef: 0.01
+
+eval_interval: 5
+eval_episodes: 5
+checkpoint_dir: checkpoints

@@ -47,6 +47,35 @@ def run_policy(
 
     return total_reward, steps
 
+def evaluate_policy(
+        env: gym.Env,
+        agent: PPOAgent,
+        num_episodes: int,
+        max_steps: int,
+        seed: int,
+) -> float:
+    eval_rewards = []
+
+    for episode in range(num_episodes):
+        obs, _ = env.reset(seed=seed + episode)
+        total_reward = 0.0
+
+        for _ in range(max_steps):
+            action, _, _ = agent.select_action(
+                obs,
+                deterministic=True
+            )
+
+            obs, reward, terminated, truncated, _ = env.step(action)
+            total_reward += float(reward)
+
+            if terminated or truncated:
+                break
+
+        eval_rewards.append(total_reward)
+
+    return float(np.mean(eval_rewards))
+
 def main():
     config = load_config("configs/ppo.yaml")
 
@@ -59,6 +88,11 @@ def main():
 
     num_updates = config["num_updates"]
     episodes_per_update = config["episodes_per_update"]
+
+    eval_interval = config["eval_interval"]
+    eval_episodes = config["eval_episodes"]
+    checkpoint_dir = config["checkpoint_dir"]
+    best_eval_reward = float("-inf")
 
     set_seed(seed)
 
@@ -142,6 +176,32 @@ def main():
             f"Value Loss: {losses['value_loss']:.4f} | "
             f"Entropy: {losses['entropy']:.4f}"
         )
+
+        if update % eval_interval == 0:
+            eval_reward = evaluate_policy(
+                env=env,
+                agent=agent,
+                num_episodes=eval_episodes,
+                max_steps=max_steps,
+                seed=seed + 10_000 + update
+            )
+
+            print(
+                f"Evaluation | Update: {update} | "
+                f"Mean Reward: {eval_reward:.2f}"
+            )
+
+            if eval_reward > best_eval_reward:
+                best_eval_reward = eval_reward
+
+                checkpoint_path = f"{checkpoint_dir}/ppo_cartpole_best.pt"
+                agent.save(checkpoint_path)
+
+                print(
+                    f"New best model saved | "
+                    f"Eval Reward: {best_eval_reward:.2f} | "
+                    f"Path: {checkpoint_path}"
+                )
 
     env.close()
 

@@ -1,5 +1,6 @@
 experiments/results/
 experiments/plots/
+checkpoints/
 
 # PyCharm / IntelliJ
 .idea/
