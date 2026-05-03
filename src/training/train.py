@@ -12,7 +12,13 @@ def load_config(config_path: str) -> dict:
     with open(config_path, "r") as f:
         return yaml.safe_load(f)
 
-def run_policy(env: gym.Env, agent: PPOAgent, buffer: PPOBuffer, max_steps: int, seed: int) -> tuple[float, int]:
+def run_policy(
+        env: gym.Env,
+        agent: PPOAgent,
+        buffer: PPOBuffer,
+        max_steps: int,
+        seed: int
+) -> tuple[float, int]:
     obs, _ = env.reset(seed=seed)
     total_reward = 0.0
     steps = 0
@@ -46,11 +52,13 @@ def main():
 
     env_name = config["env_name"]
     seed = config["seed"]
-    num_episodes = config["num_episodes"]
     max_steps = config["max_steps_per_episode"]
     log_dir = config["log_dir"]
     gamma = config["gamma"]
     gae_lambda = config["gae_lambda"]
+
+    num_updates = config["num_updates"]
+    episodes_per_update = config["episodes_per_update"]
 
     set_seed(seed)
 
@@ -79,16 +87,38 @@ def main():
     logger = CSVLogger(log_dir=log_dir)
 
     rewards = []
+    episode_count = 0
 
-    for episode in range(1, num_episodes + 1):
+    for update in range(1, num_updates + 1):
         buffer.clear()
 
-        reward, steps = run_policy(env=env, agent=agent, buffer=buffer, max_steps=max_steps, seed=seed+episode)
-        rewards.append(reward)
+        update_rewards = []
+        update_steps = 0
+
+        for _ in range(episodes_per_update):
+            episode_count += 1
+
+            reward, steps = run_policy(
+                env=env,
+                agent=agent,
+                buffer=buffer,
+                max_steps=max_steps,
+                seed=seed+episode_count
+            )
+
+            rewards.append(reward)
+            update_rewards.append(reward)
+            update_steps += steps
+
+            logger.log(
+                episode=episode_count,
+                reward=reward,
+                steps=steps
+            )
 
         buffer.compute_advantages(
-            gamma=config["gamma"],
-            gae_lambda=config["gae_lambda"],
+            gamma=gamma,
+            gae_lambda=gae_lambda,
         )
 
         batch = buffer.get_tensors()
@@ -98,16 +128,15 @@ def main():
             ppo_epochs=config["ppo_epochs"],
         )
 
-        rewards.append(reward)
-        logger.log(episode=episode, reward=reward, steps=steps)
-
         mean_reward = np.mean(rewards[-10:])
+        update_mean_reward = np.mean(update_rewards)
 
         print(
-            f"Episode: {episode}/{num_episodes} | "
-            f"Reward: {reward:.2f} | "
-            f"Steps: {steps} | "
-            f"Mean (Last 10): {mean_reward:.2f} | "
+            f"Update: {update}/{num_updates} | "
+            f"Episodes: {episode_count} | "
+            f"Update Reward Mean: {update_mean_reward:.2f} | "
+            f"Mean Reward Last 10: {mean_reward:.2f} | "
+            f"Steps Collected: {update_steps} | "
             f"Policy Loss: {losses['policy_loss']:.4f} | "
             f"Value Loss: {losses['value_loss']:.4f} | "
             f"Entropy: {losses['entropy']:.4f}"
