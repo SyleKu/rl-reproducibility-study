@@ -11,6 +11,9 @@
 ![Evaluation](https://img.shields.io/badge/Evaluation-Deterministic-blue)
 ![Checkpointing](https://img.shields.io/badge/Checkpoint-Best%20Model%20Saved-purple)
 ![Status](https://img.shields.io/badge/Status-Active-success)
+![SAC](https://img.shields.io/badge/Algorithm-SAC-purple)
+![Continuous Control](https://img.shields.io/badge/Control-Continuous-orange)
+![Environment](https://img.shields.io/badge/Gymnasium-CartPole%20%7C%20Pendulum-orange)
 
 ---
 
@@ -39,6 +42,19 @@ The PPO implementation successfully solves CartPole-v1 during deterministic eval
 
 ![PPO Training Curve](assets/ppo_cartpole.png)
 
+### SAC on Pendulum-v1
+
+The SAC implementation trains on the continuous-control `Pendulum-v1` environment using an off-policy replay buffer and entropy-regularized actor-critic updates.
+
+- Environment: `Pendulum-v1`
+- Action space: continuous
+- Replay buffer: enabled
+- Twin Q-networks: enabled
+- Automatic entropy tuning: enabled
+- Target networks with Polyak averaging: enabled
+
+![SAC Pendulum Training Curve](assets/sac_pendulum.png)
+
 ---
 
 ## Highlights
@@ -61,8 +77,8 @@ The main objective is to
 ---
 
 ## Implemented Algorithms
-- Proximal Policy Optimization (PPO) (from scratch)
-- Soft Actor-Critic (SAC) (planned)
+- Proximal Policy Optimization (PPO) - from scratch
+- Soft Actor-Critic (SAC) - from scratch
 - Twin Delayed DDPG (TD3) (planned)
 
 ---
@@ -103,6 +119,11 @@ rl-reproducibility-study/
 - CSV logging
 - Automatic experiment tracking (`run_XXX`)
 - Training curve visualization
+- Off-policy replay buffer for SAC
+- Gaussian policy with tanh-squashed actions
+- Twin Q-networks
+- Automatic entropy temperature tuning
+- Target network soft updates
 
 ---
 
