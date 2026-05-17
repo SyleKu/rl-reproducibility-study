@@ -1,11 +1,11 @@
 from pathlib import Path
 
+import torch.nn.functional as F
 import numpy as np
 import torch
 from torch.optim import Adam
 
 from src.algorithms.td3.model import DeterministicPolicy, QNetwork
-
 
 class TD3Agent:
     def __init__(
@@ -150,3 +150,76 @@ class TD3Agent:
         self.q2_optimizer.load_state_dict(checkpoint["q2_optimizer_state_dict"])
 
         self.total_updates = checkpoint["total_updates"]
+
+    def update(
+            self,
+            batch: dict[str, torch.Tensor],
+    ) -> dict[str, float]:
+        observations = batch["observations"].to(self.device)
+        actions = batch["actions"].to(self.device)
+        rewards = batch["rewards"].to(self.device)
+        next_observations = batch["next_observations"].to(self.device)
+        dones = batch["dones"].to(self.device)
+
+        self.total_updates += 1
+
+        # -------------------------
+        # Critic update
+        # -------------------------
+        with torch.no_grad():
+            noise = (
+                    torch.randn_like(actions) * self.policy_noise * self.action_limit
+            ).clamp(
+                -self.noise_clip * self.action_limit,
+                self.noise_clip * self.action_limit,
+            )
+
+            next_actions = self.actor_target(next_observations)
+            next_actions = (next_actions + noise).clamp(
+                -self.action_limit,
+                self.action_limit,
+            )
+
+            target_q1 = self.q1_target(next_observations, next_actions)
+            target_q2 = self.q2_target(next_observations, next_actions)
+            target_q = torch.min(target_q1, target_q2)
+
+            target = rewards + self.gamma * (1.0 - dones) * target_q
+
+        current_q1 = self.q1(observations, actions)
+        current_q2 = self.q2(observations, actions)
+
+        q1_loss = F.mse_loss(current_q1, target)
+        q2_loss = F.mse_loss(current_q2, target)
+
+        self.q1_optimizer.zero_grad()
+        q1_loss.backward()
+        self.q1_optimizer.step()
+
+        self.q2_optimizer.zero_grad()
+        q2_loss.backward()
+        self.q2_optimizer.step()
+
+        actor_loss_value = 0.0
+
+        # -------------------------
+        # Delayed actor update
+        # -------------------------
+        if self.total_updates % self.policy_delay == 0:
+            actor_actions = self.actor(observations)
+            actor_loss = -self.q1(observations, actor_actions).mean()
+
+            self.actor_optimizer.zero_grad()
+            actor_loss.backward()
+            self.actor_optimizer.step()
+
+            self.soft_update_targets()
+
+            actor_loss_value = float(actor_loss.item())
+
+        return {
+            "q1_loss": float(q1_loss.item()),
+            "q2_loss": float(q2_loss.item()),
+            "actor_loss": actor_loss_value,
+            "total_updates": float(self.total_updates),
+        }
