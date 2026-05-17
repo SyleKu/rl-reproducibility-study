@@ -14,6 +14,9 @@
 ![SAC](https://img.shields.io/badge/Algorithm-SAC-purple)
 ![Continuous Control](https://img.shields.io/badge/Control-Continuous-orange)
 ![Environment](https://img.shields.io/badge/Gymnasium-CartPole%20%7C%20Pendulum-orange)
+![TD3](https://img.shields.io/badge/Algorithm-TD3-blue)
+![Twin Critics](https://img.shields.io/badge/Critics-Twin-blueviolet)
+![Deterministic Policy](https://img.shields.io/badge/Policy-Deterministic-lightgrey)
 
 ---
 
@@ -55,6 +58,25 @@ The SAC implementation trains on the continuous-control `Pendulum-v1` environmen
 
 ![SAC Pendulum Training Curve](assets/sac_pendulum.png)
 
+### TD3 on Pendulum-v1
+
+The TD3 implementation addresses overestimation bias in Q-learning by using twin critics and delayed policy updates.
+
+Key features:
+
+- Deterministic actor (DDPG-style)
+- Twin Q-networks (clipped double Q-learning)
+- Target policy smoothing
+- Delayed policy updates
+- Polyak averaging for target networks
+
+Environment:
+
+- `Pendulum-v1`
+- Continuous action space
+
+![TD3 Pendulum Training Curve](assets/td3_pendulum.png)
+
 ---
 
 ## Highlights
@@ -79,7 +101,7 @@ The main objective is to
 ## Implemented Algorithms
 - Proximal Policy Optimization (PPO) - from scratch
 - Soft Actor-Critic (SAC) - from scratch
-- Twin Delayed DDPG (TD3) (planned)
+- Twin Delayed DDPG (TD3) - from scratch
 
 ---
 
@@ -124,6 +146,10 @@ rl-reproducibility-study/
 - Twin Q-networks
 - Automatic entropy temperature tuning
 - Target network soft updates
+- TD3 implementation with delayed policy updates
+- Target policy smoothing for improved stability
+- Shared replay buffer across off-policy methods
+- Modular architecture for easy algorithm comparison
 
 ---
 
@@ -152,9 +178,8 @@ python -m src.utils.plot_training
 
 ## Future Work
 
-- Implement SAC and TD3 from scratch
-- Benchmark against Stable-Baselines3
-- Run experiments across multiple seeds
-- Evaluate on more complex environments (e.g., MuJoCo)
-- Generate comparative plots and statistical analysis
- 
+- Multi-seed evaluation for PPO, SAC, TD3
+- Statistical comparison across algorithms
+- Benchmark vs Stable-Baselines3
+- Add more environments (HalfCheetah, Walker2D)
+- Hyperparameter sweeps
