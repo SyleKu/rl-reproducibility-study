@@ -1,5 +1,6 @@
 from pathlib import Path
 import numpy as np
+import torch.nn.functional as F
 import torch
 from torch.optim import Adam
 
@@ -133,3 +134,82 @@ class SACAgent:
         self.alpha_optimizer.load_state_dict(
             checkpoint["alpha_optimizer_state_dict"]
         )
+
+    def update(
+            self,
+            batch: dict[str, torch.Tensor],
+    ) -> dict[str, float]:
+        observations = batch["observations"].to(self.device)
+        actions = batch["actions"].to(self.device)
+        rewards = batch["rewards"].to(self.device)
+        next_observations = batch["next_observations"].to(self.device)
+        dones = batch["dones"].to(self.device)
+
+        # -------------------------
+        # Critic update
+        # -------------------------
+        with torch.no_grad():
+            next_actions, next_log_probs = self.policy.sample(next_observations)
+
+            target_q1 = self.q1_target(next_observations, next_actions)
+            target_q2 = self.q2_target(next_observations, next_actions)
+            target_q_min = torch.min(target_q1, target_q2)
+
+            target_q = rewards + self.gamma * (1.0 - dones) * (
+                    target_q_min - self.alpha.detach() * next_log_probs
+            )
+
+        current_q1 = self.q1(observations, actions)
+        current_q2 = self.q2(observations, actions)
+
+        q1_loss = F.mse_loss(current_q1, target_q)
+        q2_loss = F.mse_loss(current_q2, target_q)
+
+        self.q1_optimizer.zero_grad()
+        q1_loss.backward()
+        self.q1_optimizer.step()
+
+        self.q2_optimizer.zero_grad()
+        q2_loss.backward()
+        self.q2_optimizer.step()
+
+        # -------------------------
+        # Actor update
+        # -------------------------
+        new_actions, log_probs = self.policy.sample(observations)
+
+        q1_new = self.q1(observations, new_actions)
+        q2_new = self.q2(observations, new_actions)
+        q_new_min = torch.min(q1_new, q2_new)
+
+        policy_loss = (
+                self.alpha.detach() * log_probs - q_new_min
+        ).mean()
+
+        self.policy_optimizer.zero_grad()
+        policy_loss.backward()
+        self.policy_optimizer.step()
+
+        # -------------------------
+        # Alpha / entropy update
+        # -------------------------
+        alpha_loss = -(
+                self.log_alpha * (log_probs + self.target_entropy).detach()
+        ).mean()
+
+        self.alpha_optimizer.zero_grad()
+        alpha_loss.backward()
+        self.alpha_optimizer.step()
+
+        # -------------------------
+        # Target network update
+        # -------------------------
+        self.soft_update_targets()
+
+        return {
+            "q1_loss": float(q1_loss.item()),
+            "q2_loss": float(q2_loss.item()),
+            "policy_loss": float(policy_loss.item()),
+            "alpha_loss": float(alpha_loss.item()),
+            "alpha": float(self.alpha.item()),
+        }
