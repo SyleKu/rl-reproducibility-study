@@ -27,6 +27,34 @@ def create_run_dir(base_dir: str) -> Path:
 
     return run_dir
 
+def evaluate_policy(
+    env: gym.Env,
+    agent: SACAgent,
+    num_episodes: int,
+    max_episode_steps: int,
+    seed: int,
+) -> float:
+    eval_rewards = []
+
+    for episode in range(num_episodes):
+        obs, _ = env.reset(seed=seed + episode)
+        total_reward = 0.0
+
+        for _ in range(max_episode_steps):
+            action = agent.select_action(
+                obs,
+                deterministic=True,
+            )
+
+            obs, reward, terminated, truncated, _ = env.step(action)
+            total_reward += float(reward)
+
+            if terminated or truncated:
+                break
+
+        eval_rewards.append(total_reward)
+
+    return float(np.mean(eval_rewards))
 
 def main() -> None:
     config = load_config("configs/sac.yaml")
@@ -40,6 +68,10 @@ def main() -> None:
     batch_size = config["batch_size"]
     replay_buffer_capacity = config["replay_buffer_capacity"]
     max_episode_steps = config["max_episode_steps"]
+    eval_interval = config["eval_interval"]
+    eval_episodes = config["eval_episodes"]
+    checkpoint_dir = config["checkpoint_dir"]
+    best_eval_reward = float("-inf")
 
     set_seed(seed)
 
@@ -118,6 +150,33 @@ def main() -> None:
             last_losses = agent.update(batch)
 
         if done:
+            if step % eval_interval == 0:
+                eval_reward = evaluate_policy(
+                    env=env,
+                    agent=agent,
+                    num_episodes=eval_episodes,
+                    max_episode_steps=max_episode_steps,
+                    seed=seed + 10_000 + step,
+                )
+
+                print(
+                    f"Evaluation | "
+                    f"Step: {step} | "
+                    f"Mean Reward: {eval_reward:.2f}"
+                )
+
+                if eval_reward > best_eval_reward:
+                    best_eval_reward = eval_reward
+
+                    checkpoint_path = f"{checkpoint_dir}/sac_pendulum_best.pt"
+                    agent.save(checkpoint_path)
+
+                    print(
+                        f"New best SAC model saved | "
+                        f"Eval Reward: {best_eval_reward:.2f} | "
+                        f"Path: {checkpoint_path}"
+                    )
+
             logger.log(
                 episode=episode,
                 reward=episode_reward,
