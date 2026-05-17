@@ -1,0 +1,24 @@
+env_name: Pendulum-v1
+seed: 42
+
+total_steps: 50000
+start_steps: 1000
+update_after: 1000
+update_every: 1
+batch_size: 256
+replay_buffer_capacity: 100000
+
+max_episode_steps: 200
+log_dir: experiments/results
+
+hidden_dim: 256
+actor_lr: 0.0003
+critic_lr: 0.0003
+
+gamma: 0.99
+tau: 0.005
+
+policy_noise: 0.2
+noise_clip: 0.5
+exploration_noise: 0.1
+policy_delay: 2
