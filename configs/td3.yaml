@@ -22,3 +22,7 @@ policy_noise: 0.2
 noise_clip: 0.5
 exploration_noise: 0.1
 policy_delay: 2
+
+eval_interval: 5000
+eval_episodes: 5
+checkpoint_dir: checkpoints
